@@ -30,5 +30,12 @@ type DefaultParameter struct {
 type ProxyList struct {
 	NoProxy		string
 	Local 		string
-	Test 		string
+	Alpha 		string
+	Beta 		string
+	Gamma 		string
+    
+}
+
+type Config struct {
+
 }

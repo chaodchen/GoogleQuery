@@ -2,41 +2,43 @@ package main
 
 import (
 	"bufio"
-	"fish666/api"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
 	"sync"
-	"encoding/csv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+
+	"fish666/api"
+	"fish666/tool"
+
 )
 
 var proxyList api.ProxyList
+var myapp fyne.App
 
 func init() {
-	username := "devtest"
-	password := "123123aaaA"
-	node := "dc.jp-pr.oxylabs.io:12000"
 	proxyList = api.ProxyList{
 		NoProxy: "",
-		Local:   "http://127.0.0.1:4780",
-		Test:    fmt.Sprintf("http://%s:%s@%s", username, password, node),
+		Local:  fmt.Sprintf("%s:%s", tool.ReadIni("local_proxy", "host"), tool.ReadIni("local_proxy", "port")),
+		Alpha:  fmt.Sprintf("%s:%s", tool.ReadIni("my_proxy", "host"), tool.ReadIni("my_proxy", "port")),
+		Beta:  fmt.Sprintf("%s:%s", tool.ReadIni("beta_proxy", "host"), tool.ReadIni("beta_proxy", "port")),
+		Gamma:  fmt.Sprintf("%s:%s", tool.ReadIni("gamma_proxy", "host"), tool.ReadIni("gamma_proxy", "port")),
 	}
 }
 
 func main() {
 	// os.Setenv("FYNE_FONT", "Songti.ttc")
-	a := app.New()
-	w := a.NewWindow("GUI Program")
+	myapp = app.New()
+	w := myapp.NewWindow("GUI Program")
 
 	w.SetContent(UI(w))
-	// 设置全局字体
 	w.Resize(fyne.NewSize(900, 600))
 	w.ShowAndRun()
 }
@@ -45,6 +47,20 @@ func CleanTable(tables *[][7]string) {
 	if len(*tables) > 0 {
 		(*tables) = (*tables)[:1]
 	}
+}
+
+func Toast(message string) {
+	myapp.SendNotification(&fyne.Notification{
+		Title:   "Toast",
+		Content: message,
+	})
+	fyne.NewNotification("Toast", message)
+}
+
+func updateEntry(mu *sync.Mutex, entry *widget.Entry, content string) {
+	mu.Lock()
+	defer mu.Unlock()
+	entry.SetText(content)
 }
 
 func GetCsvSlices(old [][7]string) [][]string {
@@ -68,6 +84,8 @@ func UI(window fyne.Window) *fyne.Container {
 	}
 	// var wg sync.WaitGroup
 	var mu sync.Mutex
+	var mu2 sync.Mutex
+
 
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Plase entry keywords")
@@ -123,19 +141,19 @@ func UI(window fyne.Window) *fyne.Container {
 
 	openFileButton := dialog.NewFileOpen(func(uc fyne.URIReadCloser, err error) {
 		if err != nil || uc == nil {
-			logEntry.SetText("Read file failed.")
+			fmt.Println("Read file failed.")
 			return
 		}
 		filePath := uc.URI().Path()
 		fmt.Printf("Path: %s", filePath)
 		if filePath[len(filePath)-4:] != ".txt" {
-			logEntry.SetText("no txt")
+			fmt.Println("no txt")
 			return
 		}
-		logEntry.SetText("selected: " + filePath)
+		fmt.Println("selected: " + filePath)
 		file, err := os.Open(filePath)
 		if err != nil {
-			logEntry.SetText("Open file failed.")
+			fmt.Println("Open file failed.")
 			return
 		}
 		defer file.Close()
@@ -151,7 +169,7 @@ func UI(window fyne.Window) *fyne.Container {
 		}
 		table.Refresh()
 		if scanner.Err() != nil {
-			logEntry.SetText("Read line filed.")
+			fmt.Println("Read line filed.")
 		}
 		websiteEntry.SetText("")
 	}, window)
@@ -171,19 +189,19 @@ func UI(window fyne.Window) *fyne.Container {
 			{Text: "", Widget: widget.NewButton("Export", func() {
 				file, err := os.Create("output.csv")
 				if err != nil {
-					logEntry.SetText("output.csv create failed.")
+					fmt.Println("output.csv create failed.")
 					return
 				}
 				defer file.Close()
 				writer := csv.NewWriter(file)
 				err = writer.WriteAll(GetCsvSlices(tableItems))
 				if err != nil {
-					logEntry.SetText("output.csv writeall failed.")
+					fmt.Println("output.csv writeall failed.")
 					return
 				}
 				writer.Flush()
 				if err := writer.Error(); err != nil {
-					logEntry.SetText("output.csv flush failed.")
+					fmt.Println("output.csv flush failed.")
 					return
 				}
 			})},
@@ -191,6 +209,7 @@ func UI(window fyne.Window) *fyne.Container {
 		},
 		OnSubmit: func() {
 			// 反射获取代理映射值
+			Toast("Start Search")
 			proxyText := reflect.ValueOf(proxyList).FieldByName(proxySelect.Selected).Interface().(string)
 
 			if websiteEntry.Text != "" && strings.Contains(websiteEntry.Text, ".") {
@@ -209,11 +228,14 @@ func UI(window fyne.Window) *fyne.Container {
 					Type:  searchTypeSelect.Selected,
 					Proxy: proxyText,
 				}
-
+				
+				
 				i := index
 				go api.GetSearchRet(para, func(s string, err error) {
 					mu.Lock()
-					if err != nil || s == "" {return}
+					if err != nil || s == "" {
+						return
+					}
 					fmt.Printf("i: %d\n", i)
 					switch para.Time {
 					case "all":
@@ -230,8 +252,12 @@ func UI(window fyne.Window) *fyne.Container {
 						tableItems[i][6] = s
 					}
 					table.Refresh()
+					logs := fmt.Sprintf("[+] index: %d;web: %s;", i, tableItems[i][0])
+					fmt.Println(logs)
+					updateEntry(&mu2, logEntry, logs)
 					mu.Unlock()
 					// fmt.Printf("GetSearchRet: %s", s)
+
 				})
 			}
 
@@ -242,7 +268,7 @@ func UI(window fyne.Window) *fyne.Container {
 			searchTypeSelect.SetSelectedIndex(0)
 			searchTimeSelect.SetSelectedIndex(0)
 			proxySelect.SetSelectedIndex(0)
-			logEntry.SetText("Cancel\n")
+			Toast("Cancel")
 		},
 	}
 
