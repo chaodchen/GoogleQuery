@@ -5,7 +5,7 @@
 - golang:1.20
 - fyne:2.3.5
 
-### 编译
+### 打包
 First
 ```shell
 go install fyne.io/fyne/v2/cmd/fyne@latest
@@ -22,8 +22,10 @@ ForLinux:
 ```shell
 fyne package -os linux -icon icon.png
 ```
-### 运行
-```go
+### 编译 & 运行
+```shell
 go mod tidy
-go run main.go
+go build
+./fish666
 ```
+
