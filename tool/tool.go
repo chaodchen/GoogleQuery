@@ -5,6 +5,7 @@ import (
 	"gopkg.in/ini.v1"
 
 )
+
 func ReadIni(sec string, key string) string {
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
@@ -18,4 +19,15 @@ func ReadIni(sec string, key string) string {
 		fmt.Printf("No %s section", sec)
 		return ""
 	}
+}
+
+// 获取元素在切片的位置 默认返回0
+func GetKeyIndex(arr []string, key string) int {
+	if key == "" || len(arr) == 0 {return 0}
+	for i, v := range arr {
+		if v == key {
+			return i
+		}
+	}
+	return 0
 }

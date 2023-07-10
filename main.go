@@ -17,7 +17,6 @@ import (
 
 	"fish666/api"
 	"fish666/tool"
-
 )
 
 var proxyList api.ProxyList
@@ -26,10 +25,10 @@ var myapp fyne.App
 func init() {
 	proxyList = api.ProxyList{
 		NoProxy: "",
-		Local:  fmt.Sprintf("%s:%s", tool.ReadIni("local_proxy", "host"), tool.ReadIni("local_proxy", "port")),
-		Alpha:  fmt.Sprintf("%s:%s", tool.ReadIni("my_proxy", "host"), tool.ReadIni("my_proxy", "port")),
-		Beta:  fmt.Sprintf("%s:%s", tool.ReadIni("beta_proxy", "host"), tool.ReadIni("beta_proxy", "port")),
-		Gamma:  fmt.Sprintf("%s:%s", tool.ReadIni("gamma_proxy", "host"), tool.ReadIni("gamma_proxy", "port")),
+		Local:   fmt.Sprintf("%s:%s", tool.ReadIni("local_proxy", "host"), tool.ReadIni("local_proxy", "port")),
+		Alpha:   fmt.Sprintf("%s:%s", tool.ReadIni("my_proxy", "host"), tool.ReadIni("my_proxy", "port")),
+		Beta:    fmt.Sprintf("%s:%s", tool.ReadIni("beta_proxy", "host"), tool.ReadIni("beta_proxy", "port")),
+		Gamma:   fmt.Sprintf("%s:%s", tool.ReadIni("gamma_proxy", "host"), tool.ReadIni("gamma_proxy", "port")),
 	}
 }
 
@@ -82,19 +81,24 @@ func UI(window fyne.Window) *fyne.Container {
 	tableItems := [][7]string{
 		{"website", "all", "hour", "day", "week", "month", "year"},
 	}
+	searchTypeArr := []string{"any", "url"}
+	searchTimeArr := []string{"all", "hour", "day", "week", "month", "year"}
 	// var wg sync.WaitGroup
 	var mu sync.Mutex
 	var mu2 sync.Mutex
 
-
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Plase entry keywords")
+	wordEntry.SetText(tool.ReadIni("ui", "default_word"))
+
 	websiteEntry := widget.NewEntry()
 	websiteEntry.SetPlaceHolder("Plase entry the website address")
-	searchTypeSelect := widget.NewSelect([]string{"any", "url"}, nil)
-	searchTypeSelect.SetSelectedIndex(0)
-	searchTimeSelect := widget.NewSelect([]string{"all", "hour", "day", "week", "month", "year"}, nil)
-	searchTimeSelect.SetSelectedIndex(0)
+	websiteEntry.SetText(tool.ReadIni("ui", "default_web"))
+
+	searchTypeSelect := widget.NewSelect(searchTypeArr, nil)
+	searchTypeSelect.SetSelectedIndex(tool.GetKeyIndex(searchTypeArr, tool.ReadIni("ui", "default_type")))
+	searchTimeSelect := widget.NewSelect(searchTimeArr, nil)
+	searchTimeSelect.SetSelectedIndex(tool.GetKeyIndex(searchTimeArr, tool.ReadIni("ui", "default_time")))
 
 	proxyArray := make([]string, 0)
 	t := reflect.TypeOf(proxyList)
@@ -105,7 +109,8 @@ func UI(window fyne.Window) *fyne.Container {
 		}
 	}
 	proxySelect := widget.NewSelect(proxyArray, nil)
-	proxySelect.SetSelectedIndex(0)
+	proxySelect.SetSelectedIndex(tool.GetKeyIndex(proxyArray, tool.ReadIni("ui", "default_proxy")))
+	
 
 	logEntry := widget.NewMultiLineEntry()
 	logEntry.Wrapping = fyne.TextWrapWord
@@ -228,8 +233,7 @@ func UI(window fyne.Window) *fyne.Container {
 					Type:  searchTypeSelect.Selected,
 					Proxy: proxyText,
 				}
-				
-				
+
 				i := index
 				go api.GetSearchRet(para, func(s string, err error) {
 					mu.Lock()
