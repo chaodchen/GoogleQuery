@@ -100,8 +100,8 @@ func UI(window fyne.Window) *fyne.Container {
 	searchTypeArr := []string{"any", "url"}
 	searchTimeArr := []string{"all", "hour", "day", "week", "month", "year"}
 	// var wg sync.WaitGroup
-	var mu sync.Mutex
-	var mu2 sync.Mutex
+	// var mu sync.Mutex
+	// var mu2 sync.Mutex
 
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Plase entry keywords")
@@ -246,48 +246,50 @@ func UI(window fyne.Window) *fyne.Container {
 				table.Refresh()
 			}
 
-			for index := 1; index < len(tableItems); index++ {
-				curweb := tableItems[index][0]
-				fmt.Printf("[*] now web: %s\n", curweb)
-				para := api.UIParameter{
-					Word:  wordEntry.Text,
-					Time:  searchTimeSelect.Selected,
-					Web:   curweb,
-					Type:  searchTypeSelect.Selected,
-					Proxy: proxyText,
+			go func() {
+				for index := 1; index < len(tableItems); index++ {
+					curweb := tableItems[index][0]
+					fmt.Printf("[*] now web: %s\n", curweb)
+					para := api.UIParameter{
+						Word:  wordEntry.Text,
+						Time:  searchTimeSelect.Selected,
+						Web:   curweb,
+						Type:  searchTypeSelect.Selected,
+						Proxy: proxyText,
+					}
+
+					i := index
+					api.GetSearchRet(para, func(s string, err error) {
+						// mu.Lock()
+						if err != nil || s == "" {
+							// 搜索失败 未返回结果
+							return
+						}
+						s = strings.ReplaceAll(s, ",", "")
+						fmt.Printf("i: %d\n", i)
+						switch para.Time {
+						case "all":
+							tableItems[i][1] = s
+						case "hour":
+							tableItems[i][2] = s
+						case "day":
+							tableItems[i][3] = s
+						case "week":
+							tableItems[i][4] = s
+						case "month":
+							tableItems[i][5] = s
+						case "year":
+							tableItems[i][6] = s
+						}
+						table.Refresh()
+						logs := fmt.Sprintf("[+] index: %d;web: %s;", i, tableItems[i][0])
+						fmt.Println(logs)
+						logEntry.SetText(logs)
+						// updateEntry(&mu2, logEntry, logs)
+						// mu.Unlock()
+					})
 				}
-
-				i := index
-				go api.GetSearchRet(para, func(s string, err error) {
-					mu.Lock()
-					if err != nil || s == "" {
-						// 搜索失败 未返回结果
-						return
-					}
-					s = strings.ReplaceAll(s, ",", "")
-					fmt.Printf("i: %d\n", i)
-					switch para.Time {
-					case "all":
-						tableItems[i][1] = s
-					case "hour":
-						tableItems[i][2] = s
-					case "day":
-						tableItems[i][3] = s
-					case "week":
-						tableItems[i][4] = s
-					case "month":
-						tableItems[i][5] = s
-					case "year":
-						tableItems[i][6] = s
-					}
-					table.Refresh()
-					logs := fmt.Sprintf("[+] index: %d;web: %s;", i, tableItems[i][0])
-					fmt.Println(logs)
-					updateEntry(&mu2, logEntry, logs)
-					mu.Unlock()
-
-				})
-			}
+			}()
 
 		},
 		OnCancel: func() {
