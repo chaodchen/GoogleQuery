@@ -41,10 +41,11 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	if p.Proxy != "" {
+		fmt.Printf("[*] proxy: %s\n", p.Proxy)
 		proxyURL, err := url.Parse(p.Proxy)
 		if err != nil {
 			fmt.Println("ProxyUrl解析失败")
-		    back("", nil)
+		    back("", err)
 		}
 		client.Transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
@@ -81,7 +82,7 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		back("", nil)
+		back("", err)
 	}
 	defer resp.Body.Close()
 
@@ -93,7 +94,7 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-        back("", nil)
+        back("", err)
 
 	}
 
@@ -103,12 +104,12 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
     if len(match) > 2 {
         result := match[1]
         duration := match[2]
-        fmt.Printf("结果数量: %s, 用时%s\n", result, duration)
+        fmt.Printf("[*] site: %s, 结果数量: %s, 用时%s\n",p.Web, result, duration)
         back(result, nil)
 
     } else {
-        fmt.Println("未找到匹配的字符串")
+		fmt.Println(string(body))
+        fmt.Println("[!] not found search result.")
         back("", nil)
-
     }
 }

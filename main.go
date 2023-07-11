@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -26,10 +28,11 @@ func init() {
 	proxyList = api.ProxyList{
 		NoProxy: "",
 		Local:   fmt.Sprintf("%s:%s", tool.ReadIni("local_proxy", "host"), tool.ReadIni("local_proxy", "port")),
-		Alpha:   fmt.Sprintf("%s:%s", tool.ReadIni("my_proxy", "host"), tool.ReadIni("my_proxy", "port")),
+		Alpha:   fmt.Sprintf("%s:%s", tool.ReadIni("alpha_proxy", "host"), tool.ReadIni("alpha_proxy", "port")),
 		Beta:    fmt.Sprintf("%s:%s", tool.ReadIni("beta_proxy", "host"), tool.ReadIni("beta_proxy", "port")),
 		Gamma:   fmt.Sprintf("%s:%s", tool.ReadIni("gamma_proxy", "host"), tool.ReadIni("gamma_proxy", "port")),
 	}
+	fmt.Println(proxyList)
 }
 
 func main() {
@@ -77,6 +80,19 @@ func GetCsvSlices(old [][7]string) [][]string {
 	return ret
 }
 
+func sortTables(y int, arr [][7]string, tab *widget.Table, stat bool) {
+	sort.Slice(arr, func(i, j int) bool {
+		oldnum, _ := strconv.Atoi(arr[i][y])
+		newnum, _ := strconv.Atoi(arr[j][y])
+		fmt.Printf("[*] oldnum: %d, newnum: %d\n", oldnum, newnum)
+		if stat {
+			return oldnum < newnum
+		}
+		return oldnum > newnum
+	})
+	tab.Refresh()
+}
+
 func UI(window fyne.Window) *fyne.Container {
 	tableItems := [][7]string{
 		{"website", "all", "hour", "day", "week", "month", "year"},
@@ -110,7 +126,6 @@ func UI(window fyne.Window) *fyne.Container {
 	}
 	proxySelect := widget.NewSelect(proxyArray, nil)
 	proxySelect.SetSelectedIndex(tool.GetKeyIndex(proxyArray, tool.ReadIni("ui", "default_proxy")))
-	
 
 	logEntry := widget.NewMultiLineEntry()
 	logEntry.Wrapping = fyne.TextWrapWord
@@ -119,8 +134,7 @@ func UI(window fyne.Window) *fyne.Container {
 	table := widget.NewTable(
 		func() (int, int) { return len(tableItems), len(tableItems[0]) },
 		func() fyne.CanvasObject {
-			label := widget.NewLabel("Item")
-			return label
+			return widget.NewLabel("Item")
 		},
 		func(tci widget.TableCellID, co fyne.CanvasObject) {
 			var itemData string
@@ -128,9 +142,18 @@ func UI(window fyne.Window) *fyne.Container {
 				itemData = "0"
 			}
 			co.(*widget.Label).SetText(itemData)
-			// fmt.Println(tableItems[tci.Row][tci.Col])
 		},
 	)
+
+	isSort := false
+	table.OnSelected = func(cell widget.TableCellID) {
+		fmt.Printf("[*] Selected: %d, %d, clicked\n", cell.Row, cell.Col)
+		if cell.Row == 0 {
+			isSort = !isSort
+			sortTables(cell.Col, tableItems, table, isSort)
+		}
+	}
+
 	table.SetColumnWidth(0, 180)
 	table.SetColumnWidth(1, 120)
 	table.SetColumnWidth(2, 120)
@@ -225,7 +248,7 @@ func UI(window fyne.Window) *fyne.Container {
 
 			for index := 1; index < len(tableItems); index++ {
 				curweb := tableItems[index][0]
-				// fmt.Printf("ste: %s\n", curweb)
+				fmt.Printf("[*] now web: %s\n", curweb)
 				para := api.UIParameter{
 					Word:  wordEntry.Text,
 					Time:  searchTimeSelect.Selected,
@@ -238,8 +261,10 @@ func UI(window fyne.Window) *fyne.Container {
 				go api.GetSearchRet(para, func(s string, err error) {
 					mu.Lock()
 					if err != nil || s == "" {
+						// 搜索失败 未返回结果
 						return
 					}
+					s = strings.ReplaceAll(s, ",", "")
 					fmt.Printf("i: %d\n", i)
 					switch para.Time {
 					case "all":
@@ -260,7 +285,6 @@ func UI(window fyne.Window) *fyne.Container {
 					fmt.Println(logs)
 					updateEntry(&mu2, logEntry, logs)
 					mu.Unlock()
-					// fmt.Printf("GetSearchRet: %s", s)
 
 				})
 			}
