@@ -38,7 +38,7 @@ func main() {
 	w := myapp.NewWindow("GUI Program")
 
 	w.SetContent(UI(w))
-	w.Resize(fyne.NewSize(900, 600))
+	w.Resize(fyne.NewSize(1150, 600))
 	w.ShowAndRun()
 }
 
@@ -131,7 +131,7 @@ func UI(window fyne.Window) *fyne.Container {
 			// fmt.Println(tableItems[tci.Row][tci.Col])
 		},
 	)
-	table.SetColumnWidth(0, 120)
+	table.SetColumnWidth(0, 180)
 	table.SetColumnWidth(1, 120)
 	table.SetColumnWidth(2, 120)
 	table.SetColumnWidth(3, 120)
