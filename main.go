@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
+	// "sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -59,11 +59,11 @@ func Toast(message string) {
 	fyne.NewNotification("Toast", message)
 }
 
-func updateEntry(mu *sync.Mutex, entry *widget.Entry, content string) {
-	mu.Lock()
-	defer mu.Unlock()
-	entry.SetText(content)
-}
+// func updateEntry(mu *sync.Mutex, entry *widget.Entry, content string) {
+// 	mu.Lock()
+// 	defer mu.Unlock()
+// 	entry.SetText(content)
+// }
 
 func GetCsvSlices(old [][7]string) [][]string {
 	ret := make([][]string, len(old))
@@ -102,6 +102,7 @@ func UI(window fyne.Window) *fyne.Container {
 	// var wg sync.WaitGroup
 	// var mu sync.Mutex
 	// var mu2 sync.Mutex
+	uilogs := ""
 
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Plase entry keywords")
@@ -130,6 +131,7 @@ func UI(window fyne.Window) *fyne.Container {
 	logEntry := widget.NewMultiLineEntry()
 	logEntry.Wrapping = fyne.TextWrapWord
 	logEntry.Disable()
+	logEntry.SetText(uilogs)
 
 	table := widget.NewTable(
 		func() (int, int) { return len(tableItems), len(tableItems[0]) },
@@ -249,7 +251,10 @@ func UI(window fyne.Window) *fyne.Container {
 			go func() {
 				for index := 1; index < len(tableItems); index++ {
 					curweb := tableItems[index][0]
-					fmt.Printf("[*] 当前站点: %s\n", curweb)
+					uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]\n", index, curweb)
+					uilogs = tool.GetLastThreeLines(uilogs)
+					logEntry.SetText(uilogs)
+					
 					para := api.UIParameter{
 						Word:  wordEntry.Text,
 						Time:  searchTimeSelect.Selected,
@@ -258,36 +263,35 @@ func UI(window fyne.Window) *fyne.Container {
 						Proxy: proxyText,
 					}
 
-					i := index
 					api.GetSearchRet(para, func(s string, err error) {
 						// mu.Lock()
 						if err != nil || s == "" {
-							fmt.Printf("[*] 搜索失败 %s\n", curweb)
+							uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]; search failed.", index, curweb)
+							uilogs = tool.GetLastThreeLines(uilogs)
+							logEntry.SetText(uilogs)
 							return
 						}
 						s = strings.ReplaceAll(s, ",", "")
-						fmt.Printf("i: %d\n", i)
+						fmt.Printf("i: %d\n", index)
 						switch para.Time {
 						case "all":
-							tableItems[i][1] = s
+							tableItems[index][1] = s
 						case "hour":
-							tableItems[i][2] = s
+							tableItems[index][2] = s
 						case "day":
-							tableItems[i][3] = s
+							tableItems[index][3] = s
 						case "week":
-							tableItems[i][4] = s
+							tableItems[index][4] = s
 						case "month":
-							tableItems[i][5] = s
+							tableItems[index][5] = s
 						case "year":
-							tableItems[i][6] = s
+							tableItems[index][6] = s
 						}
 						table.Refresh()
 						fmt.Println("[*] 搜索完成.")
-						logs := fmt.Sprintf("[+] index: %d;web: %s;", i, tableItems[i][0])
-						fmt.Println(logs)
-						logEntry.SetText(logs)
-						// updateEntry(&mu2, logEntry, logs)
-						// mu.Unlock()
+						uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]; search success.", index, curweb)
+						uilogs = tool.GetLastThreeLines(uilogs)
+						logEntry.SetText(uilogs)
 					})
 				}
 			}()
