@@ -249,7 +249,7 @@ func UI(window fyne.Window) *fyne.Container {
 			go func() {
 				for index := 1; index < len(tableItems); index++ {
 					curweb := tableItems[index][0]
-					fmt.Printf("[*] now web: %s\n", curweb)
+					fmt.Printf("[*] 当前站点: %s\n", curweb)
 					para := api.UIParameter{
 						Word:  wordEntry.Text,
 						Time:  searchTimeSelect.Selected,
@@ -262,7 +262,7 @@ func UI(window fyne.Window) *fyne.Container {
 					api.GetSearchRet(para, func(s string, err error) {
 						// mu.Lock()
 						if err != nil || s == "" {
-							// 搜索失败 未返回结果
+							fmt.Printf("[*] 搜索失败 %s\n", curweb)
 							return
 						}
 						s = strings.ReplaceAll(s, ",", "")
@@ -282,6 +282,7 @@ func UI(window fyne.Window) *fyne.Container {
 							tableItems[i][6] = s
 						}
 						table.Refresh()
+						fmt.Println("[*] 搜索完成.")
 						logs := fmt.Sprintf("[+] index: %d;web: %s;", i, tableItems[i][0])
 						fmt.Println(logs)
 						logEntry.SetText(logs)

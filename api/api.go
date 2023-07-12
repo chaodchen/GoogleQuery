@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -44,7 +45,8 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 	if err != nil {
 		request_sleep = 0
 	}
-	time.Sleep(time.Duration(request_sleep) * time.Second)
+	fmt.Printf("[*] request_sleep: %d", request_sleep)
+	// time.Sleep(time.Duration(request_sleep) * time.Second)
 
 	searchApi := "https://www.google.com/search?"
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -54,6 +56,7 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 		if err != nil {
 			fmt.Println("ProxyUrl解析失败")
 			back("", err)
+			return
 		}
 		client.Transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
@@ -87,22 +90,27 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 	req.Header.Set("Accept-Language", "zh-CN,zh-Hans;q=0.9")
 	// req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("User-Agent", tool.ReadIni("http", "user_agent"))
-
+	fmt.Println("[*] Do Requests")
 	resp, err := client.Do(req)
+	fmt.Println("[*] Requests end.")
 	if err != nil {
+		fmt.Printf("[*] Requests error: %s\n", err.Error())
 		back("", err)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		fmt.Println("[*] http.Status not equal to ok.")
 		back("", nil)
-
+		return
 	}
-	// contentType := resp.Header.Get("Content-Type")
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
 		back("", err)
+		fmt.Println("[*] io.Readall error.")
+		return
 	}
 
 	// 正则取值
@@ -113,11 +121,13 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 		duration := match[2]
 		fmt.Printf("[*] site: %s, 结果数量: %s, 用时%s\n", p.Web, result, duration)
 		back(result, nil)
-
+		return
 	} else {
-		fmt.Println(string(body))
-		
 		fmt.Println("[!] not found search result.")
+		file, _ := os.Create("failed.html")
+		defer file.Close()
+		file.WriteString(string(body))
 		back("", nil)
+		return
 	}
 }
