@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
-	"strconv"
 	"strings"
+
 	// "sync"
 
 	"fyne.io/fyne/v2"
@@ -41,14 +40,8 @@ func main() {
 	w := myapp.NewWindow("GUI Program")
 
 	w.SetContent(UI(w))
-	w.Resize(fyne.NewSize(1150, 600))
+	w.Resize(fyne.NewSize(1280, 600))
 	w.ShowAndRun()
-}
-
-func CleanTable(tables *[][7]string) {
-	if len(*tables) > 0 {
-		(*tables) = (*tables)[:1]
-	}
 }
 
 func Toast(message string) {
@@ -80,23 +73,13 @@ func GetCsvSlices(old [][7]string) [][]string {
 	return ret
 }
 
-func sortTables(y int, arr [][7]string, tab *widget.Table, stat bool) {
-	sort.Slice(arr, func(i, j int) bool {
-		oldnum, _ := strconv.Atoi(arr[i][y])
-		newnum, _ := strconv.Atoi(arr[j][y])
-		fmt.Printf("[*] oldnum: %d, newnum: %d\n", oldnum, newnum)
-		if stat {
-			return oldnum < newnum
-		}
-		return oldnum > newnum
-	})
-	tab.Refresh()
-}
-
 func UI(window fyne.Window) *fyne.Container {
-	tableItems := [][7]string{
-		{"website", "all", "hour", "day", "week", "month", "year"},
+
+	table := api.TableData{
+		TopTableItems: [][7]string{{"website", "all", "hour", "day", "week", "month", "year"}},
+		TableItems:    [][7]string{},
 	}
+
 	searchTypeArr := []string{"any", "url"}
 	searchTimeArr := []string{"all", "hour", "day", "week", "month", "year"}
 	// var wg sync.WaitGroup
@@ -133,41 +116,62 @@ func UI(window fyne.Window) *fyne.Container {
 	logEntry.Disable()
 	logEntry.SetText(uilogs)
 
-	table := widget.NewTable(
-		func() (int, int) { return len(tableItems), len(tableItems[0]) },
+	dosort := true
+	var tableBody *widget.Table
+	tableTop := widget.NewTable(
+		func() (int, int) { return len(table.TopTableItems), len(table.TopTableItems[0]) },
 		func() fyne.CanvasObject {
-			return widget.NewLabel("Item")
+			button := widget.NewButton("TestTestTestTestTest", nil)
+			return button
+		},
+		func(tci widget.TableCellID, co fyne.CanvasObject) {
+			button := co.(*widget.Button)
+			button.SetText(table.TopTableItems[0][tci.Col])
+			button.OnTapped = func() {
+				if tci.Row == 0 && tci.Col > 0 {
+					// 开始排序
+					fmt.Printf("开始排序:%d", tci.Col)
+					dosort = !dosort
+					if dosort {
+						table.Ascend(tci.Col)
+					} else {
+						table.Descend(tci.Col)
+					}
+					tableBody.Refresh()
+				}
+			}
+		},
+	)
+	fmt.Printf("minisize: %.2f, %.2f\n", tableTop.MinSize().Width, tableTop.MinSize().Height)
+
+	// tableTop.SetRowHeight(0, 35)
+	tableTop.SetColumnWidth(0, 200)
+
+	tableBody = widget.NewTable(
+		func() (int, int) { return len(table.TableItems), len(table.TableItems[0]) },
+		func() fyne.CanvasObject {
+			return widget.NewLabel("TestTestTestTestTestTest")
 		},
 		func(tci widget.TableCellID, co fyne.CanvasObject) {
 			var itemData string
-			if itemData = tableItems[tci.Row][tci.Col]; itemData == "" {
+			if itemData = table.TableItems[tci.Row][tci.Col]; itemData == "" {
 				itemData = "0"
 			}
 			co.(*widget.Label).SetText(itemData)
 		},
 	)
 
-	isSort := false
-	table.OnSelected = func(cell widget.TableCellID) {
-		fmt.Printf("[*] Selected: %d, %d, clicked\n", cell.Row, cell.Col)
-		if cell.Row == 0 {
-			isSort = !isSort
-			sortTables(cell.Col, tableItems, table, isSort)
-		}
-	}
+	tableBody.SetColumnWidth(0, 200)
+	tableBody.SetColumnWidth(1, tableTop.MinSize().Width)
+	tableBody.SetColumnWidth(2, tableTop.MinSize().Width)
+	tableBody.SetColumnWidth(3, tableTop.MinSize().Width)
+	tableBody.SetColumnWidth(4, tableTop.MinSize().Width)
+	tableBody.SetColumnWidth(5, tableTop.MinSize().Width)
+	tableBody.SetColumnWidth(6, tableTop.MinSize().Width)
 
-	table.SetColumnWidth(0, 180)
-	table.SetColumnWidth(1, 120)
-	table.SetColumnWidth(2, 120)
-	table.SetColumnWidth(3, 120)
-	table.SetColumnWidth(4, 120)
-	table.SetColumnWidth(5, 120)
-	table.SetColumnWidth(6, 120)
-
-	// table.SetRowHeight(-1, 20)
-
-	tableBox := container.NewVScroll(table)
-	tableBox.SetMinSize(fyne.NewSize(650, 300))
+	// tableBox := container.NewVBox(tableTop, tableBody)
+	tableBox := container.NewVScroll(tableBody)
+	tableBox.SetMinSize(fyne.NewSize(800, 300))
 
 	openFileButton := dialog.NewFileOpen(func(uc fyne.URIReadCloser, err error) {
 		if err != nil || uc == nil {
@@ -187,7 +191,8 @@ func UI(window fyne.Window) *fyne.Container {
 			return
 		}
 		defer file.Close()
-		CleanTable(&tableItems)
+		// 清空列表
+		table.Clean()
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
@@ -195,9 +200,9 @@ func UI(window fyne.Window) *fyne.Container {
 			if line == "" {
 				continue
 			}
-			tableItems = append(tableItems, [7]string{line})
+			table.TableItems = append(table.TableItems, [7]string{line})
 		}
-		table.Refresh()
+		tableBody.Refresh()
 		if scanner.Err() != nil {
 			fmt.Println("Read line filed.")
 		}
@@ -215,7 +220,10 @@ func UI(window fyne.Window) *fyne.Container {
 			{Text: "Type", Widget: searchTypeSelect},
 
 			{Text: "Proxy", Widget: proxySelect},
+			{Text: "", Widget: tableTop},
 			{Text: "", Widget: tableBox},
+
+			// {Text: "", Widget: tableBody},
 			{Text: "", Widget: widget.NewButton("Export", func() {
 				file, err := os.Create("output.csv")
 				if err != nil {
@@ -224,16 +232,17 @@ func UI(window fyne.Window) *fyne.Container {
 				}
 				defer file.Close()
 				writer := csv.NewWriter(file)
-				err = writer.WriteAll(GetCsvSlices(tableItems))
+				err = writer.WriteAll(GetCsvSlices(table.TableItems))
 				if err != nil {
-					fmt.Println("output.csv writeall failed.")
+					Toast("output.csv writeall failed.")
 					return
 				}
 				writer.Flush()
 				if err := writer.Error(); err != nil {
-					fmt.Println("output.csv flush failed.")
+					Toast("output.csv flush failed.")
 					return
 				}
+				Toast("Export out.csv success.")
 			})},
 			{Text: "Logs", Widget: logEntry},
 		},
@@ -243,18 +252,18 @@ func UI(window fyne.Window) *fyne.Container {
 			proxyText := reflect.ValueOf(proxyList).FieldByName(proxySelect.Selected).Interface().(string)
 
 			if websiteEntry.Text != "" && strings.Contains(websiteEntry.Text, ".") {
-				CleanTable(&tableItems)
-				tableItems = append(tableItems, [7]string{websiteEntry.Text})
-				table.Refresh()
+				table.Clean()
+				table.TableItems = append(table.TableItems, [7]string{websiteEntry.Text})
+				tableBody.Refresh()
 			}
 
 			go func() {
-				for index := 1; index < len(tableItems); index++ {
-					curweb := tableItems[index][0]
+				for index := 0; index < len(table.TableItems); index++ {
+					curweb := table.TableItems[index][0]
 					uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]\n", index, curweb)
 					uilogs = tool.GetLastThreeLines(uilogs)
 					logEntry.SetText(uilogs)
-					
+
 					para := api.UIParameter{
 						Word:  wordEntry.Text,
 						Time:  searchTimeSelect.Selected,
@@ -275,34 +284,31 @@ func UI(window fyne.Window) *fyne.Container {
 						fmt.Printf("i: %d\n", index)
 						switch para.Time {
 						case "all":
-							tableItems[index][1] = s
+							table.TableItems[index][1] = s
 						case "hour":
-							tableItems[index][2] = s
+							table.TableItems[index][2] = s
 						case "day":
-							tableItems[index][3] = s
+							table.TableItems[index][3] = s
 						case "week":
-							tableItems[index][4] = s
+							table.TableItems[index][4] = s
 						case "month":
-							tableItems[index][5] = s
+							table.TableItems[index][5] = s
 						case "year":
-							tableItems[index][6] = s
+							table.TableItems[index][6] = s
 						}
-						table.Refresh()
+						tableBody.Refresh()
 						fmt.Println("[*] 搜索完成.")
 						uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]; search success.", index, curweb)
 						uilogs = tool.GetLastThreeLines(uilogs)
 						logEntry.SetText(uilogs)
 					})
 				}
+				Toast("Searched.")
 			}()
-
 		},
 		OnCancel: func() {
 			wordEntry.SetText("")
 			websiteEntry.SetText("")
-			searchTypeSelect.SetSelectedIndex(0)
-			searchTimeSelect.SetSelectedIndex(0)
-			proxySelect.SetSelectedIndex(0)
 			Toast("Cancel")
 		},
 	}
