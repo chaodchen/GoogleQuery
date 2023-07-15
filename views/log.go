@@ -1,6 +1,8 @@
 package views
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -26,7 +28,7 @@ func (l *MyLogs) GetView() *container.Scroll {
 }
 
 func (l *MyLogs) Info(str string) {
-	t := canvas.NewText(str, nil)
+	t := canvas.NewText(str, color.Black)
 	t.TextSize = 16
 	l.box.Add(t)
 	l.Logs = append(l.Logs, str)
