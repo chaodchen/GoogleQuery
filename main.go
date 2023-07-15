@@ -38,7 +38,7 @@ func init() {
 }
 
 func main() {
-	os.Setenv("FYNE_FONT", "./fonts/" + tool.ReadIni("ui", "font"))
+	os.Setenv("FYNE_FONT", "./fonts/"+tool.ReadIni("ui", "font"))
 	myapp = app.New()
 	// myapp.Settings().SetTheme(&theme.MyTheme{})
 	mywindow = myapp.NewWindow("GUI Program")
@@ -264,7 +264,8 @@ func UI(window fyne.Window) *fyne.Container {
 
 					api.GetSearchRet(para, func(s string, err error) {
 						if err != nil || s == "" {
-							ml.Info(fmt.Sprintf("[+] index: [%d];web: [%s]; search failed.", index, curweb))
+							ml.Info(fmt.Sprintf("[!] index: [%d];web: [%s]; search failed.", index, curweb))
+							ml.Info(fmt.Sprintf("[!] error: %s", err.Error()))
 							return
 						}
 						s = strings.ReplaceAll(s, ",", "")

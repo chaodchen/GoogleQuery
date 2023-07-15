@@ -17,6 +17,14 @@ func init() {
 
 }
 
+type Myerr struct {
+	msg string
+}
+
+func (m *Myerr) Error() string {
+	return m.msg
+}
+
 func NewParameter(para UIParameter) DefaultParameter {
 	if para.Time != "all" {
 		para.Time = string(para.Time[0])
@@ -102,11 +110,10 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println("[*] http.Status not equal to ok.")
-		back("", nil)
+		back("", &Myerr{"result.status not equal 200!"})
 		return
 	}
 	body, err := io.ReadAll(resp.Body)
-
 	if err != nil {
 		back("", err)
 		fmt.Println("[*] io.Readall error.")
@@ -127,7 +134,7 @@ func GetSearchRet(p UIParameter, back func(string, error)) {
 		file, _ := os.Create("failed.html")
 		defer file.Close()
 		file.WriteString(string(body))
-		back("", nil)
+		back("", &Myerr{"not found search result."})
 		return
 	}
 }
