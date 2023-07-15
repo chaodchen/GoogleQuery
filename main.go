@@ -4,24 +4,26 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
+	"image/color"
 	"os"
 	"reflect"
 	"strings"
 
-	// "sync"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"fish666/api"
 	"fish666/tool"
+	"fish666/views"
 )
 
 var proxyList api.ProxyList
 var myapp fyne.App
+var mywindow fyne.Window
 
 func init() {
 	proxyList = api.ProxyList{
@@ -37,26 +39,16 @@ func init() {
 func main() {
 	// os.Setenv("FYNE_FONT", "Songti.ttc")
 	myapp = app.New()
-	w := myapp.NewWindow("GUI Program")
+	mywindow = myapp.NewWindow("GUI Program")
 
-	w.SetContent(UI(w))
-	w.Resize(fyne.NewSize(1280, 600))
-	w.ShowAndRun()
+	mywindow.SetContent(UI(mywindow))
+	mywindow.Resize(fyne.NewSize(1280, 600))
+	mywindow.ShowAndRun()
 }
 
-func Toast(message string) {
-	myapp.SendNotification(&fyne.Notification{
-		Title:   "Toast",
-		Content: message,
-	})
-	fyne.NewNotification("Toast", message)
+func Alert(str string) {
+	dialog.ShowInformation("Alert", str, mywindow)
 }
-
-// func updateEntry(mu *sync.Mutex, entry *widget.Entry, content string) {
-// 	mu.Lock()
-// 	defer mu.Unlock()
-// 	entry.SetText(content)
-// }
 
 func GetCsvSlices(old [][7]string) [][]string {
 	ret := make([][]string, len(old))
@@ -82,10 +74,6 @@ func UI(window fyne.Window) *fyne.Container {
 
 	searchTypeArr := []string{"any", "url"}
 	searchTimeArr := []string{"all", "hour", "day", "week", "month", "year"}
-	// var wg sync.WaitGroup
-	// var mu sync.Mutex
-	// var mu2 sync.Mutex
-	uilogs := ""
 
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Plase entry keywords")
@@ -111,10 +99,8 @@ func UI(window fyne.Window) *fyne.Container {
 	proxySelect := widget.NewSelect(proxyArray, nil)
 	proxySelect.SetSelectedIndex(tool.GetKeyIndex(proxyArray, tool.ReadIni("ui", "default_proxy")))
 
-	logEntry := widget.NewMultiLineEntry()
-	logEntry.Wrapping = fyne.TextWrapWord
-	logEntry.Disable()
-	logEntry.SetText(uilogs)
+	test := canvas.NewText("aa", color.White)
+	test.TextSize = 2
 
 	dosort := true
 	var tableBody *widget.Table
@@ -172,6 +158,8 @@ func UI(window fyne.Window) *fyne.Container {
 	// tableBox := container.NewVBox(tableTop, tableBody)
 	tableBox := container.NewVScroll(tableBody)
 	tableBox.SetMinSize(fyne.NewSize(800, 300))
+
+	ml := views.NewMyLogs()
 
 	openFileButton := dialog.NewFileOpen(func(uc fyne.URIReadCloser, err error) {
 		if err != nil || uc == nil {
@@ -234,21 +222,23 @@ func UI(window fyne.Window) *fyne.Container {
 				writer := csv.NewWriter(file)
 				err = writer.WriteAll(GetCsvSlices(table.TableItems))
 				if err != nil {
-					Toast("output.csv writeall failed.")
+					Alert("output.csv writeall failed.")
 					return
 				}
 				writer.Flush()
 				if err := writer.Error(); err != nil {
-					Toast("output.csv flush failed.")
+					Alert("output.csv flush failed.")
 					return
 				}
-				Toast("Export out.csv success.")
+				ml.Info("Export out.csv success.")
+				Alert("Export out.csv success.")
+
 			})},
-			{Text: "Logs", Widget: logEntry},
+			{Text: "Logs", Widget: ml.GetView()},
 		},
 		OnSubmit: func() {
 			// 反射获取代理映射值
-			Toast("Start Search")
+			ml.Info("Start Search")
 			proxyText := reflect.ValueOf(proxyList).FieldByName(proxySelect.Selected).Interface().(string)
 
 			if websiteEntry.Text != "" && strings.Contains(websiteEntry.Text, ".") {
@@ -260,9 +250,7 @@ func UI(window fyne.Window) *fyne.Container {
 			go func() {
 				for index := 0; index < len(table.TableItems); index++ {
 					curweb := table.TableItems[index][0]
-					uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]\n", index, curweb)
-					uilogs = tool.GetLastThreeLines(uilogs)
-					logEntry.SetText(uilogs)
+					ml.Info(fmt.Sprintf("[+] index: [%d];web: [%s]", index, curweb))
 
 					para := api.UIParameter{
 						Word:  wordEntry.Text,
@@ -273,11 +261,8 @@ func UI(window fyne.Window) *fyne.Container {
 					}
 
 					api.GetSearchRet(para, func(s string, err error) {
-						// mu.Lock()
 						if err != nil || s == "" {
-							uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]; search failed.", index, curweb)
-							uilogs = tool.GetLastThreeLines(uilogs)
-							logEntry.SetText(uilogs)
+							ml.Info(fmt.Sprintf("[+] index: [%d];web: [%s]; search failed.", index, curweb))
 							return
 						}
 						s = strings.ReplaceAll(s, ",", "")
@@ -298,18 +283,22 @@ func UI(window fyne.Window) *fyne.Container {
 						}
 						tableBody.Refresh()
 						fmt.Println("[*] 搜索完成.")
-						uilogs += fmt.Sprintf("[+] index: [%d];web: [%s]; search success.", index, curweb)
-						uilogs = tool.GetLastThreeLines(uilogs)
-						logEntry.SetText(uilogs)
+						ml.Info(fmt.Sprintf("[+] index: [%d];web: [%s]; search success.", index, curweb))
 					})
 				}
-				Toast("Searched.")
+				Alert("Searched.")
 			}()
 		},
 		OnCancel: func() {
 			wordEntry.SetText("")
 			websiteEntry.SetText("")
-			Toast("Cancel")
+			ml.Cancel()
+			// table.Clean()
+			// table.TableItems = append(table.TableItems, [7]string{})
+			// tableBody.Refresh()
+			ml.Info("Cancel all")
+			// 清除表格
+
 		},
 	}
 
