@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"fish666/api"
+	// "fish666/theme"
 	"fish666/tool"
 	"fish666/views"
 )
@@ -37,8 +38,9 @@ func init() {
 }
 
 func main() {
-	// os.Setenv("FYNE_FONT", "Songti.ttc")
+	os.Setenv("FYNE_FONT", "./fonts/" + tool.ReadIni("ui", "font"))
 	myapp = app.New()
+	// myapp.Settings().SetTheme(&theme.MyTheme{})
 	mywindow = myapp.NewWindow("GUI Program")
 
 	mywindow.SetContent(UI(mywindow))
